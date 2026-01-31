@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSafeRedirectPath } from "@/lib/utils/url";
 
 export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,7 +64,7 @@ export async function updateSession(request: NextRequest) {
   if (user && isAuthPath) {
     const redirectTo = request.nextUrl.searchParams.get("redirectTo");
     const url = request.nextUrl.clone();
-    url.pathname = redirectTo || "/projects";
+    url.pathname = getSafeRedirectPath(redirectTo);
     url.searchParams.delete("redirectTo");
     return NextResponse.redirect(url);
   }
