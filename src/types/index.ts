@@ -1,37 +1,57 @@
+// Common types
+export type ISOTimestamp = string;
+
+export interface BaseEntity {
+  id: string;
+  created_at: ISOTimestamp;
+  updated_at: ISOTimestamp;
+}
+
+// API response types
+export interface ApiResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// Form action state types
+export interface FormActionState {
+  error?: string;
+  success?: boolean;
+}
+
+// Task types
 export type TaskStatus = "todo" | "in_progress" | "done";
 
 export type TaskPriority = "low" | "medium" | "high";
 
-export interface Profile {
-  id: string;
+export interface Profile extends BaseEntity {
   email: string;
   name: string | null;
   avatar_url: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface Project {
-  id: string;
+export interface Project extends BaseEntity {
   name: string;
   description: string | null;
   owner_id: string;
-  created_at: string;
-  updated_at: string;
 }
 
-export interface Task {
-  id: string;
+export interface Task extends BaseEntity {
   title: string;
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
-  due_date: string | null;
+  due_date: ISOTimestamp | null;
   position: number;
   project_id: string;
   created_by: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface Tag {
@@ -56,6 +76,6 @@ export interface AuthUser {
   email: string;
   name: string | null;
   avatar_url: string | null;
-  email_confirmed_at: string | null;
-  created_at: string;
+  email_confirmed_at: ISOTimestamp | null;
+  created_at: ISOTimestamp;
 }
