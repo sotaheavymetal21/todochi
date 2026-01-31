@@ -29,9 +29,8 @@ function getSupabaseClient(): SupabaseClient | null {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn(
-      "Supabase environment variables not set. Authentication will not work.",
-    );
+    // eslint-disable-next-line no-console
+    console.warn("Supabase environment variables not set.");
     return null;
   }
 
