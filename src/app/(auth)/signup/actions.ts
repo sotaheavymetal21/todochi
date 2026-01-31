@@ -42,43 +42,53 @@ export async function signup(
     };
   }
 
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-  const { error } = await supabase.auth.signUp({
-    email: validatedFields.data.email,
-    password: validatedFields.data.password,
-    options: {
-      data: {
-        name: validatedFields.data.name,
+    const { error } = await supabase.auth.signUp({
+      email: validatedFields.data.email,
+      password: validatedFields.data.password,
+      options: {
+        data: {
+          name: validatedFields.data.name,
+        },
+        emailRedirectTo: `${siteUrl}/auth/confirm`,
       },
-      emailRedirectTo: `${siteUrl}/auth/confirm`,
-    },
-  });
+    });
 
-  if (error) {
-    if (error.message.includes("already registered")) {
+    if (error) {
+      if (error.message.includes("already registered")) {
+        return {
+          error: "このメールアドレスは既に登録されています",
+        };
+      }
       return {
-        error: "このメールアドレスは既に登録されています",
+        error: "登録に失敗しました。もう一度お試しください。",
       };
     }
+
+    // If email confirmation is disabled, redirect to projects
+    // Otherwise, show success message
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user?.email_confirmed_at) {
+      redirect("/projects");
+    }
+
     return {
-      error: "登録に失敗しました。もう一度お試しください。",
+      success: true,
+    };
+  } catch (error) {
+    // Re-throw redirect errors (they are handled by Next.js)
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+      throw error;
+    }
+    return {
+      error: "予期しないエラーが発生しました。もう一度お試しください。",
     };
   }
-
-  // If email confirmation is disabled, redirect to projects
-  // Otherwise, show success message
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user?.email_confirmed_at) {
-    redirect("/projects");
-  }
-
-  return {
-    success: true,
-  };
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { getSafeRedirectPath } from "@/lib/utils/url";
 
 const loginSchema = z.object({
   email: z.string().email("有効なメールアドレスを入力してください"),
@@ -35,20 +36,30 @@ export async function login(
     };
   }
 
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: validatedFields.data.email,
-    password: validatedFields.data.password,
-  });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: validatedFields.data.email,
+      password: validatedFields.data.password,
+    });
 
-  if (error) {
+    if (error) {
+      return {
+        error: "メールアドレスまたはパスワードが正しくありません",
+      };
+    }
+
+    const redirectTo = formData.get("redirectTo") as string | null;
+    revalidatePath("/", "layout");
+    redirect(getSafeRedirectPath(redirectTo));
+  } catch (error) {
+    // Re-throw redirect errors (they are handled by Next.js)
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+      throw error;
+    }
     return {
-      error: "メールアドレスまたはパスワードが正しくありません",
+      error: "予期しないエラーが発生しました。もう一度お試しください。",
     };
   }
-
-  const redirectTo = formData.get("redirectTo") as string;
-  revalidatePath("/", "layout");
-  redirect(redirectTo || "/projects");
 }
