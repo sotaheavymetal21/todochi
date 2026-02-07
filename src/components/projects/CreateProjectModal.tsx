@@ -1,0 +1,128 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useFormState } from "react-dom";
+import { PlusIcon, XMarkIcon } from "@/components/icons";
+import { FormInput, SubmitButton, Alert } from "@/components/ui";
+import {
+  createProject,
+  type CreateProjectState,
+} from "@/app/(dashboard)/projects/actions";
+
+const initialState: CreateProjectState = {};
+
+export default function CreateProjectModal() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [state, formAction] = useFormState(createProject, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const closeModal = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  // 成功時にモーダルを閉じてフォームをリセット
+  useEffect(() => {
+    if (state.success) {
+      closeModal();
+      formRef.current?.reset();
+    }
+  }, [state.success, closeModal]);
+
+  // Escape キーでモーダルを閉じる
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, closeModal]);
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+      >
+        <PlusIcon className="h-4 w-4" />
+        新規作成
+      </button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* オーバーレイ */}
+          <div
+            className="absolute inset-0 bg-black/50 transition-opacity"
+            onClick={closeModal}
+            aria-hidden="true"
+          />
+
+          {/* モーダルカード */}
+          <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            {/* ヘッダー */}
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">新規プロジェクト</h2>
+              <button
+                onClick={closeModal}
+                className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* フォーム */}
+            <form ref={formRef} action={formAction} className="space-y-4">
+              <FormInput
+                label="プロジェクト名"
+                name="name"
+                required
+                placeholder="例: マイプロジェクト"
+                error={state.fieldErrors?.name?.[0]}
+              />
+
+              <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  説明（任意）
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  rows={3}
+                  placeholder="プロジェクトの説明を入力..."
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                {state.fieldErrors?.description?.[0] && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {state.fieldErrors.description[0]}
+                  </p>
+                )}
+              </div>
+
+              {state.error && <Alert variant="error">{state.error}</Alert>}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+                >
+                  キャンセル
+                </button>
+                <SubmitButton size="sm" pendingText="作成中...">
+                  作成
+                </SubmitButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
