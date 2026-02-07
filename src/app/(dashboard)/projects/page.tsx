@@ -1,33 +1,51 @@
-import Link from "next/link";
-import { FolderIcon } from "@/components/icons";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import type { Project } from "@/types";
+import ProjectCard from "@/components/projects/ProjectCard";
+import EmptyState from "@/components/projects/EmptyState";
+import CreateProjectModal from "@/components/projects/CreateProjectModal";
 
-const mockProjects = [
-  { id: "1", name: "サンプルプロジェクト", description: "これはサンプルです" },
-  { id: "2", name: "開発タスク", description: "開発関連のタスク管理" },
-];
+export const dynamic = "force-dynamic";
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: projects, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("owner_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const typedProjects = (projects ?? []) as Project[];
+
   return (
     <div>
-      <h1 className="mb-6 text-3xl font-bold">プロジェクト</h1>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {mockProjects.map((project) => (
-          <Link
-            key={project.id}
-            href={`/projects/${project.id}`}
-            className="block rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="flex items-start gap-3">
-              <FolderIcon className="h-8 w-8 text-indigo-500" />
-              <div>
-                <h2 className="text-lg font-semibold">{project.name}</h2>
-                <p className="text-sm text-gray-600">{project.description}</p>
-              </div>
-            </div>
-          </Link>
-        ))}
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold">プロジェクト</h1>
+        <CreateProjectModal />
       </div>
+
+      {typedProjects.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {typedProjects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
