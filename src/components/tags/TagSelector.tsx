@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition, useCallback } from "react";
 import { PlusIcon, TagIcon } from "@/components/icons";
 import TagBadge from "@/components/tags/TagBadge";
 import TagColorPicker, {
@@ -30,8 +30,10 @@ export default function TagSelector({
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // ドロップダウン外クリックで閉じる
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function TagSelector({
         setIsOpen(false);
         setIsCreating(false);
         setSearch("");
+        setHighlightedIndex(-1);
       }
     }
 
@@ -64,6 +67,15 @@ export default function TagSelector({
       (tag) => tag.name.toLowerCase() === search.trim().toLowerCase(),
     );
 
+  // キーボードナビ用の選択可能アイテム数（タグ + 作成オプション）
+  const totalItems =
+    filteredTags.length + (showCreateOption && !isCreating ? 1 : 0);
+
+  // 検索テキスト変更時にハイライトをリセット
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [search]);
+
   function handleToggleTag(tagId: string) {
     if (selectedTagIds.includes(tagId)) {
       onTagsChange(selectedTagIds.filter((id) => id !== tagId));
@@ -80,9 +92,10 @@ export default function TagSelector({
     setIsCreating(true);
     setNewTagColor(DEFAULT_TAG_COLOR);
     setError(null);
+    setHighlightedIndex(-1);
   }
 
-  function handleCreateTag() {
+  const handleCreateTag = useCallback(() => {
     const tagName = search.trim();
     if (!tagName) return;
 
@@ -99,13 +112,68 @@ export default function TagSelector({
         setSearch("");
         setIsCreating(false);
         setError(null);
+        setHighlightedIndex(-1);
       } else if (result.error) {
         setError(result.error);
       } else if (result.fieldErrors?.name) {
         setError(result.fieldErrors.name[0]);
       }
     });
+  }, [
+    search,
+    newTagColor,
+    projectId,
+    selectedTagIds,
+    onTagCreated,
+    onTagsChange,
+    startTransition,
+  ]);
+
+  // キーボードナビゲーション
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!isOpen) return;
+
+    // 作成フォーム表示中はナビ無効（フォーム内操作を優先）
+    if (isCreating) return;
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < filteredTags.length) {
+          handleToggleTag(filteredTags[highlightedIndex].id);
+        } else if (
+          highlightedIndex === filteredTags.length &&
+          showCreateOption
+        ) {
+          handleStartCreate();
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setIsOpen(false);
+        setSearch("");
+        setHighlightedIndex(-1);
+        break;
+    }
   }
+
+  // ハイライト項目を自動スクロール
+  useEffect(() => {
+    if (highlightedIndex < 0 || !listRef.current) return;
+    const items = listRef.current.querySelectorAll("[data-tag-item]");
+    const item = items[highlightedIndex];
+    if (item) {
+      item.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex]);
 
   const selectedTags = availableTags.filter((tag) =>
     selectedTagIds.includes(tag.id),
@@ -144,7 +212,11 @@ export default function TagSelector({
 
       {/* ドロップダウン */}
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div
+          className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+          role="listbox"
+          aria-label="タグを選択"
+        >
           {/* 検索入力 */}
           <div className="border-b border-gray-100 p-2">
             <input
@@ -156,24 +228,45 @@ export default function TagSelector({
                 setIsCreating(false);
                 setError(null);
               }}
+              onKeyDown={handleKeyDown}
               placeholder="タグを検索または作成..."
               className="w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              role="combobox"
+              aria-controls="tag-listbox"
+              aria-expanded={isOpen}
+              aria-activedescendant={
+                highlightedIndex >= 0 && highlightedIndex < filteredTags.length
+                  ? `tag-option-${filteredTags[highlightedIndex].id}`
+                  : undefined
+              }
             />
           </div>
 
           {/* タグリスト */}
-          <div className="max-h-48 overflow-y-auto p-1">
-            {filteredTags.map((tag) => {
+          <div
+            ref={listRef}
+            id="tag-listbox"
+            className="max-h-48 overflow-y-auto p-1"
+          >
+            {filteredTags.map((tag, index) => {
               const isSelected = selectedTagIds.includes(tag.id);
+              const isHighlighted = index === highlightedIndex;
               return (
                 <button
                   key={tag.id}
+                  id={`tag-option-${tag.id}`}
+                  data-tag-item
                   type="button"
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => handleToggleTag(tag.id)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
                   className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
-                    isSelected
+                    isHighlighted
                       ? "bg-indigo-50 text-indigo-700"
-                      : "text-gray-700 hover:bg-gray-50"
+                      : isSelected
+                        ? "bg-indigo-50/50 text-indigo-700"
+                        : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   <span
@@ -197,9 +290,15 @@ export default function TagSelector({
             {/* 新規作成オプション */}
             {showCreateOption && !isCreating && (
               <button
+                data-tag-item
                 type="button"
                 onClick={handleStartCreate}
-                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm text-indigo-600 transition-colors hover:bg-indigo-50"
+                onMouseEnter={() => setHighlightedIndex(filteredTags.length)}
+                className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+                  highlightedIndex === filteredTags.length
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-indigo-600 hover:bg-indigo-50"
+                }`}
               >
                 <PlusIcon className="h-4 w-4" />
                 <span>&ldquo;{search.trim()}&rdquo; を作成</span>
