@@ -1,5 +1,11 @@
 import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { ListIcon, KanbanIcon } from "@/components/icons";
+import ProjectDetailActions from "@/components/projects/ProjectDetailActions";
+import type { Project } from "@/types";
+
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: { projectId: string };
@@ -23,14 +29,42 @@ const priorityColors: Record<string, string> = {
   low: "border-green-500 text-green-600",
 };
 
-export default function ProjectDetailPage({ params }: Props) {
+export default async function ProjectDetailPage({ params }: Props) {
   const { projectId } = params;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .eq("owner_id", user.id)
+    .single();
+
+  if (error || !project) {
+    notFound();
+  }
+
+  const typedProject = project as Project;
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">プロジェクト詳細（リスト表示）</h1>
-        <div className="flex gap-2">
+        <div>
+          <h1 className="text-3xl font-bold">{typedProject.name}</h1>
+          {typedProject.description && (
+            <p className="mt-1 text-gray-600">{typedProject.description}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <ProjectDetailActions project={typedProject} />
           <button
             disabled
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
