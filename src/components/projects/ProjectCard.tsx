@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FolderIcon } from "@/components/icons";
+import ProjectCardActions from "@/components/projects/ProjectCardActions";
 import type { Project } from "@/types";
 
 interface ProjectCardProps {
@@ -32,14 +33,18 @@ function formatRelativeTime(dateString: string): string {
 
 export default function ProjectCard({ project }: ProjectCardProps) {
   return (
-    <Link
-      href={`/projects/${project.id}`}
-      className="block rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-    >
+    <div className="rounded-xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start gap-3">
         <FolderIcon className="h-8 w-8 flex-shrink-0 text-indigo-500" />
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-lg font-semibold">{project.name}</h2>
+          <div className="flex items-start justify-between gap-2">
+            <Link href={`/projects/${project.id}`} className="min-w-0 flex-1">
+              <h2 className="truncate text-lg font-semibold hover:text-indigo-600">
+                {project.name}
+              </h2>
+            </Link>
+            <ProjectCardActions project={project} />
+          </div>
           {project.description && (
             <p className="mt-1 line-clamp-2 text-sm text-gray-600">
               {project.description}
@@ -50,6 +55,6 @@ export default function ProjectCard({ project }: ProjectCardProps) {
           </p>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
