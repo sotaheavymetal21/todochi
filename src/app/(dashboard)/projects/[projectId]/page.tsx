@@ -5,7 +5,7 @@ import { ListIcon, KanbanIcon } from "@/components/icons";
 import ProjectDetailActions from "@/components/projects/ProjectDetailActions";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 import TaskList from "@/components/tasks/TaskList";
-import type { Project, Task } from "@/types";
+import type { Project, Tag, TaskWithTags } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,13 +38,48 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   const typedProject = project as Project;
 
+  // タグ一覧を取得
+  const { data: tags } = await supabase
+    .from("tags")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("name");
+
+  const typedTags = (tags ?? []) as Tag[];
+
+  // タスク一覧を取得（タグ付き）
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("*")
+    .select(
+      `
+      *,
+      task_tags(
+        tag_id,
+        tags(*)
+      )
+    `,
+    )
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  const typedTasks = (tasks ?? []) as Task[];
+  // タスクデータを TaskWithTags 型に変換
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const typedTasks: TaskWithTags[] = (tasks ?? []).map((task: any) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    due_date: task.due_date,
+    position: task.position,
+    project_id: task.project_id,
+    created_by: task.created_by,
+    created_at: task.created_at,
+    updated_at: task.updated_at,
+    tags: (task.task_tags ?? [])
+      .map((tt: { tags: Tag }) => tt.tags)
+      .filter(Boolean),
+  }));
 
   return (
     <div>
@@ -57,7 +92,7 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <ProjectDetailActions project={typedProject} />
-          <CreateTaskModal projectId={projectId} />
+          <CreateTaskModal projectId={projectId} availableTags={typedTags} />
           <button
             disabled
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
@@ -75,7 +110,11 @@ export default async function ProjectDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <TaskList tasks={typedTasks} projectId={projectId} />
+      <TaskList
+        tasks={typedTasks}
+        projectId={projectId}
+        availableTags={typedTags}
+      />
     </div>
   );
 }

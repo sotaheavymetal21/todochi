@@ -1,36 +1,68 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useTransition } from "react";
 import { useFormState } from "react-dom";
 import { PlusIcon, XMarkIcon } from "@/components/icons";
 import { FormInput, SubmitButton, Alert } from "@/components/ui";
+import TagSelector from "@/components/tags/TagSelector";
 import {
   createTask,
+  updateTaskTags,
   type CreateTaskState,
 } from "@/app/(dashboard)/projects/[projectId]/actions";
+import type { Tag } from "@/types";
 
 const initialState: CreateTaskState = {};
 
 interface CreateTaskModalProps {
   projectId: string;
+  availableTags: Tag[];
 }
 
-export default function CreateTaskModal({ projectId }: CreateTaskModalProps) {
+export default function CreateTaskModal({
+  projectId,
+  availableTags: initialTags,
+}: CreateTaskModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [state, formAction] = useFormState(createTask, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [localTags, setLocalTags] = useState<Tag[]>(initialTags);
+  const [, startTransition] = useTransition();
+
+  // 親から渡されるタグリストが更新されたら同期
+  useEffect(() => {
+    setLocalTags(initialTags);
+  }, [initialTags]);
 
   const closeModal = useCallback(() => {
     setIsOpen(false);
+    setSelectedTagIds([]);
   }, []);
 
-  // 成功時にモーダルを閉じてフォームをリセット
+  // 成功時にタグを紐付けてからモーダルを閉じる
   useEffect(() => {
-    if (state.success) {
+    if (state.success && state.taskId) {
+      if (selectedTagIds.length > 0) {
+        const formData = new FormData();
+        formData.set("taskId", state.taskId);
+        formData.set("projectId", projectId);
+        formData.set("tagIds", JSON.stringify(selectedTagIds));
+        startTransition(async () => {
+          await updateTaskTags({}, formData);
+        });
+      }
       closeModal();
       formRef.current?.reset();
     }
-  }, [state.success, closeModal]);
+  }, [
+    state.success,
+    state.taskId,
+    selectedTagIds,
+    projectId,
+    closeModal,
+    startTransition,
+  ]);
 
   // Escape キーでモーダルを閉じる
   useEffect(() => {
@@ -45,6 +77,10 @@ export default function CreateTaskModal({ projectId }: CreateTaskModalProps) {
       return () => document.removeEventListener("keydown", handleKeyDown);
     }
   }, [isOpen, closeModal]);
+
+  function handleTagCreated(tag: Tag) {
+    setLocalTags((prev) => [...prev, tag]);
+  }
 
   return (
     <>
@@ -160,6 +196,14 @@ export default function CreateTaskModal({ projectId }: CreateTaskModalProps) {
                   )}
                 </div>
               </div>
+
+              <TagSelector
+                projectId={projectId}
+                availableTags={localTags}
+                selectedTagIds={selectedTagIds}
+                onTagsChange={setSelectedTagIds}
+                onTagCreated={handleTagCreated}
+              />
 
               {state.error && <Alert variant="error">{state.error}</Alert>}
 

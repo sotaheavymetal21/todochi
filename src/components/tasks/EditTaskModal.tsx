@@ -1,36 +1,65 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useFormState } from "react-dom";
 import { XMarkIcon } from "@/components/icons";
 import { FormInput, SubmitButton, Alert } from "@/components/ui";
+import TagSelector from "@/components/tags/TagSelector";
 import {
   updateTask,
+  updateTaskTags,
   type UpdateTaskState,
 } from "@/app/(dashboard)/projects/[projectId]/actions";
-import type { Task } from "@/types";
+import type { Tag, TaskWithTags } from "@/types";
 
 const initialState: UpdateTaskState = {};
 
 interface EditTaskModalProps {
-  task: Task;
+  task: TaskWithTags;
   projectId: string;
+  availableTags: Tag[];
   onClose: () => void;
 }
 
 export default function EditTaskModal({
   task,
   projectId,
+  availableTags: initialTags,
   onClose,
 }: EditTaskModalProps) {
   const [state, formAction] = useFormState(updateTask, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    task.tags.map((t) => t.id),
+  );
+  const [localTags, setLocalTags] = useState<Tag[]>(initialTags);
+  const [, startTransition] = useTransition();
 
+  // 親から渡されるタグリストが更新されたら同期
+  useEffect(() => {
+    setLocalTags(initialTags);
+  }, [initialTags]);
+
+  // 成功時にタグを更新してからモーダルを閉じる
   useEffect(() => {
     if (state.success) {
+      const formData = new FormData();
+      formData.set("taskId", task.id);
+      formData.set("projectId", projectId);
+      formData.set("tagIds", JSON.stringify(selectedTagIds));
+      startTransition(async () => {
+        await updateTaskTags({}, formData);
+      });
       onClose();
     }
-  }, [state.success, onClose]);
+  }, [
+    state.success,
+    task.id,
+    selectedTagIds,
+    projectId,
+    onClose,
+    startTransition,
+  ]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -42,6 +71,10 @@ export default function EditTaskModal({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  function handleTagCreated(tag: Tag) {
+    setLocalTags((prev) => [...prev, tag]);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -146,6 +179,14 @@ export default function EditTaskModal({
               )}
             </div>
           </div>
+
+          <TagSelector
+            projectId={projectId}
+            availableTags={localTags}
+            selectedTagIds={selectedTagIds}
+            onTagsChange={setSelectedTagIds}
+            onTagCreated={handleTagCreated}
+          />
 
           {state.error && <Alert variant="error">{state.error}</Alert>}
 
