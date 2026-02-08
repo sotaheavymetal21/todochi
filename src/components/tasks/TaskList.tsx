@@ -1,12 +1,17 @@
 import TaskCard from "@/components/tasks/TaskCard";
-import type { Task } from "@/types";
+import type { TaskWithTags, Tag } from "@/types";
 
 interface TaskListProps {
-  tasks: Task[];
+  tasks: TaskWithTags[];
   projectId: string;
+  availableTags: Tag[];
 }
 
-export default function TaskList({ tasks, projectId }: TaskListProps) {
+export default function TaskList({
+  tasks,
+  projectId,
+  availableTags,
+}: TaskListProps) {
   if (tasks.length === 0) {
     return (
       <div className="rounded-lg border-2 border-dashed border-gray-200 p-12 text-center">
@@ -21,7 +26,12 @@ export default function TaskList({ tasks, projectId }: TaskListProps) {
   return (
     <div className="space-y-2">
       {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} projectId={projectId} />
+        <TaskCard
+          key={task.id}
+          task={task}
+          projectId={projectId}
+          availableTags={availableTags}
+        />
       ))}
     </div>
   );

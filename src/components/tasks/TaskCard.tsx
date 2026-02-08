@@ -4,7 +4,8 @@ import { useState } from "react";
 import { PencilIcon, TrashIcon } from "@/components/icons";
 import EditTaskModal from "@/components/tasks/EditTaskModal";
 import DeleteTaskDialog from "@/components/tasks/DeleteTaskDialog";
-import type { Task, TaskStatus, TaskPriority } from "@/types";
+import TagBadge from "@/components/tags/TagBadge";
+import type { TaskWithTags, TaskStatus, TaskPriority, Tag } from "@/types";
 
 const statusLabels: Record<TaskStatus, string> = {
   todo: "未着手",
@@ -31,11 +32,16 @@ const priorityColors: Record<TaskPriority, string> = {
 };
 
 interface TaskCardProps {
-  task: Task;
+  task: TaskWithTags;
   projectId: string;
+  availableTags: Tag[];
 }
 
-export default function TaskCard({ task, projectId }: TaskCardProps) {
+export default function TaskCard({
+  task,
+  projectId,
+  availableTags,
+}: TaskCardProps) {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
@@ -48,6 +54,13 @@ export default function TaskCard({ task, projectId }: TaskCardProps) {
             <p className="mt-1 truncate text-sm text-gray-500">
               {task.description}
             </p>
+          )}
+          {task.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {task.tags.map((tag) => (
+                <TagBadge key={tag.id} tag={tag} size="sm" />
+              ))}
+            </div>
           )}
         </div>
 
@@ -85,6 +98,7 @@ export default function TaskCard({ task, projectId }: TaskCardProps) {
         <EditTaskModal
           task={task}
           projectId={projectId}
+          availableTags={availableTags}
           onClose={() => setShowEdit(false)}
         />
       )}
