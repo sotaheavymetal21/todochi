@@ -197,6 +197,26 @@ export default function CreateTaskModal({
                 </div>
               </div>
 
+              <div>
+                <label
+                  htmlFor="create-task-due-date"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  期限日（任意）
+                </label>
+                <input
+                  type="date"
+                  id="create-task-due-date"
+                  name="due_date"
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                {state.fieldErrors?.due_date?.[0] && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {state.fieldErrors.due_date[0]}
+                  </p>
+                )}
+              </div>
+
               <TagSelector
                 projectId={projectId}
                 availableTags={localTags}

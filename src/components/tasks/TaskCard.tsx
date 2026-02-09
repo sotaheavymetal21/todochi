@@ -31,6 +31,36 @@ const priorityColors: Record<TaskPriority, string> = {
   high: "border-red-500 text-red-600",
 };
 
+type DueDateStatus = "overdue" | "today" | "upcoming";
+
+function getDueDateStatus(dueDate: string | null): DueDateStatus | null {
+  if (!dueDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate + "T00:00:00");
+
+  if (due < today) return "overdue";
+  if (due.getTime() === today.getTime()) return "today";
+  return "upcoming";
+}
+
+function formatDueDate(dueDate: string): string {
+  const due = new Date(dueDate + "T00:00:00");
+  return due.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+}
+
+const dueDateStyles: Record<DueDateStatus, string> = {
+  overdue: "bg-red-50 text-red-600 border border-red-200",
+  today: "bg-yellow-50 text-yellow-600 border border-yellow-200",
+  upcoming: "bg-gray-50 text-gray-600 border border-gray-200",
+};
+
+const dueDateLabels: Record<DueDateStatus, (formatted: string) => string> = {
+  overdue: (d) => `期限切れ: ${d}`,
+  today: () => "今日まで",
+  upcoming: (d) => `${d}まで`,
+};
+
 interface TaskCardProps {
   task: TaskWithTags;
   projectId: string;
@@ -45,6 +75,8 @@ export default function TaskCard({
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
+  const dueDateStatus = getDueDateStatus(task.due_date);
+
   return (
     <>
       <div className="flex items-center gap-4 rounded-lg bg-white p-4 shadow-sm">
@@ -55,13 +87,18 @@ export default function TaskCard({
               {task.description}
             </p>
           )}
-          {task.tags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {task.tags.map((tag) => (
-                <TagBadge key={tag.id} tag={tag} size="sm" />
-              ))}
-            </div>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {dueDateStatus && task.due_date && (
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${dueDateStyles[dueDateStatus]}`}
+              >
+                {dueDateLabels[dueDateStatus](formatDueDate(task.due_date))}
+              </span>
+            )}
+            {task.tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} size="sm" />
+            ))}
+          </div>
         </div>
 
         <span
