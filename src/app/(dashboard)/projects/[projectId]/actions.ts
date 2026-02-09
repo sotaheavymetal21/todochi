@@ -19,6 +19,10 @@ const createTaskSchema = z.object({
     .transform((val) => val || null),
   status: z.enum(["todo", "in_progress", "done"]).default("todo"),
   priority: z.enum(["low", "medium", "high"]).default("medium"),
+  due_date: z
+    .string()
+    .optional()
+    .transform((val) => val || null),
 });
 
 const updateTaskSchema = z.object({
@@ -33,6 +37,10 @@ const updateTaskSchema = z.object({
     .transform((val) => val || null),
   status: z.enum(["todo", "in_progress", "done"]),
   priority: z.enum(["low", "medium", "high"]),
+  due_date: z
+    .string()
+    .optional()
+    .transform((val) => val || null),
 });
 
 const createTagSchema = z.object({
@@ -52,6 +60,7 @@ export interface CreateTaskState {
     description?: string[];
     status?: string[];
     priority?: string[];
+    due_date?: string[];
   };
   success?: boolean;
   taskId?: string;
@@ -64,6 +73,7 @@ export interface UpdateTaskState {
     description?: string[];
     status?: string[];
     priority?: string[];
+    due_date?: string[];
   };
   success?: boolean;
 }
@@ -105,6 +115,7 @@ export async function createTask(
     description: formData.get("description") as string,
     status: formData.get("status") as string,
     priority: formData.get("priority") as string,
+    due_date: formData.get("due_date") as string,
   };
 
   const validatedFields = createTaskSchema.safeParse(rawFormData);
@@ -135,6 +146,7 @@ export async function createTask(
         description: validatedFields.data.description,
         status: validatedFields.data.status,
         priority: validatedFields.data.priority,
+        due_date: validatedFields.data.due_date,
         project_id: projectId,
         created_by: user.id,
       })
@@ -171,6 +183,7 @@ export async function updateTask(
     description: formData.get("description") as string,
     status: formData.get("status") as string,
     priority: formData.get("priority") as string,
+    due_date: formData.get("due_date") as string,
   };
 
   const validatedFields = updateTaskSchema.safeParse(rawFormData);
@@ -201,6 +214,7 @@ export async function updateTask(
         description: validatedFields.data.description,
         status: validatedFields.data.status,
         priority: validatedFields.data.priority,
+        due_date: validatedFields.data.due_date,
       })
       .eq("id", taskId);
 
